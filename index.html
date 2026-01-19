@@ -19,7 +19,6 @@
 
         .setup-section { text-align: center; padding: 15px; background: #f9f9f9; border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--border-color); }
         
-        /* 科目輸入卡片 */
         .grade-card { 
             border: 2px solid var(--morandi-blue); 
             border-radius: 10px; 
@@ -29,22 +28,19 @@
         }
         .card-row { display: flex; align-items: center; margin-bottom: 10px; }
         .card-row label { width: 70px; font-weight: bold; color: var(--morandi-dark-gray); font-size: 14px; }
-        .card-row input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; outline: none; font-size: 16px; width: 100%; }
+        .card-row input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; outline: none; font-size: 16px; width: 100%; }
         .card-row input:focus { border-color: var(--morandi-pink); }
         
         .score-group { display: flex; gap: 8px; flex: 2; align-items: center; }
         .score-group input { width: 45%; }
 
-        /* 按鈕樣式 */
         .btn-group { display: flex; flex-direction: column; gap: 12px; margin: 20px 0; }
         .btn { padding: 15px; cursor: pointer; border: none; border-radius: 10px; color: white; font-size: 16px; font-weight: bold; transition: 0.3s; }
         .btn-add { background-color: var(--morandi-blue); }
         .btn-save { background-color: var(--morandi-pink); }
-        .btn:active { opacity: 0.7; transform: scale(0.98); }
 
         .row-total-display { text-align: right; font-weight: bold; border-top: 1px solid #eee; padding-top: 10px; margin-top: 5px; color: var(--morandi-dark-gray); }
 
-        /* 歷史紀錄顯示 */
         .history-card { 
             border: 1px solid var(--border-color); 
             border-left: 5px solid var(--morandi-dark-gray);
@@ -84,7 +80,7 @@
     <div id="historyArea"></div>
 
     <div class="backup-section">
-        <h3 style="color:var(--morandi-dark-gray)">數據備份與恢復</h3>
+        <h3 style="color:var(--morandi-dark-gray)">📂 數據備份與恢復</h3>
         <button class="btn btn-add" style="margin-bottom:10px" onclick="exportData()">下載備份檔 (.json)</button>
         <button class="btn btn-save" onclick="document.getElementById('importFile').click()">匯入備份檔案</button>
         <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
@@ -92,7 +88,7 @@
 
     <script>
         window.onload = () => { 
-            renderHistory();
+            loadAndFixHistory();
             if (document.getElementById('gradeArea').children.length === 0) addRow();
         };
 
@@ -101,38 +97,11 @@
             const card = document.createElement('div');
             card.className = 'grade-card';
             card.innerHTML = `
-                <div class="card-row">
-                    <label>科目</label>
-                    <input type="text" class="subject-input" placeholder="例如：微積分">
-                </div>
-                <div class="card-row">
-                    <label>學分</label>
-                    <input type="number" class="credit-input" oninput="calculateCard(this)" placeholder="學分數">
-                </div>
-                <div class="card-row">
-                    <label>期中</label>
-                    <div class="score-group">
-                        <input type="number" class="mid-s" placeholder="分數" oninput="calculateCard(this)">
-                        <span>/</span>
-                        <input type="number" class="mid-p" placeholder="佔比%" oninput="calculateCard(this)">
-                    </div>
-                </div>
-                <div class="card-row">
-                    <label>期末</label>
-                    <div class="score-group">
-                        <input type="number" class="fin-s" placeholder="分數" oninput="calculateCard(this)">
-                        <span>/</span>
-                        <input type="number" class="fin-p" placeholder="佔比%" oninput="calculateCard(this)">
-                    </div>
-                </div>
-                <div class="card-row">
-                    <label>平時</label>
-                    <div class="score-group">
-                        <input type="number" class="dai-s" placeholder="分數" oninput="calculateCard(this)">
-                        <span>/</span>
-                        <input type="number" class="dai-p" placeholder="佔比%" oninput="calculateCard(this)">
-                    </div>
-                </div>
+                <div class="card-row"><label>科目</label><input type="text" class="subject-input"></div>
+                <div class="card-row"><label>學分</label><input type="number" class="credit-input" oninput="calculateCard(this)"></div>
+                <div class="card-row"><label>期中</label><div class="score-group"><input type="number" class="mid-s" oninput="calculateCard(this)"><span>/</span><input type="number" class="mid-p" oninput="calculateCard(this)"></div></div>
+                <div class="card-row"><label>期末</label><div class="score-group"><input type="number" class="fin-s" oninput="calculateCard(this)"><span>/</span><input type="number" class="fin-p" oninput="calculateCard(this)"></div></div>
+                <div class="card-row"><label>平時</label><div class="score-group"><input type="number" class="dai-s" oninput="calculateCard(this)"><span>/</span><input type="number" class="dai-p" oninput="calculateCard(this)"></div></div>
                 <div class="row-total-display">此科成績：<span class="row-total">0.0</span></div>
             `;
             container.appendChild(card);
@@ -158,15 +127,17 @@
             cards.forEach(card => {
                 const sub = card.querySelector('.subject-input').value;
                 const cre = parseFloat(card.querySelector('.credit-input').value) || 0;
-                const total = parseFloat(card.querySelector('.row-total').innerText) || 0;
+                // 強制四捨五入至第一位再計算平均
+                const total = Math.round(parseFloat(card.querySelector('.row-total').innerText) * 10) / 10;
+                
                 if (sub) {
                     totalCredits += cre;
                     weightedSum += (total * cre);
-                    details.push(`${sub}(${cre}學分:${total}分)`);
+                    details.push(`${sub}(${cre}學分:${total.toFixed(1)}分)`);
                 }
             });
 
-            if (details.length === 0) { alert("請填寫科目名稱"); return; }
+            if (details.length === 0) return;
 
             let history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
             history.push({
@@ -176,11 +147,15 @@
                 avg: totalCredits > 0 ? (weightedSum / totalCredits).toFixed(2) : 0
             });
             localStorage.setItem('myGradeRecords', JSON.stringify(history));
-
             renderHistory();
             document.getElementById('gradeArea').innerHTML = "";
             addRow();
-            alert("成績單已存檔！");
+        }
+
+        function loadAndFixHistory() {
+            let history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
+            // 此處不變動資料結構，僅確保顯示時為新邏輯格式
+            renderHistory();
         }
 
         function renderHistory() {
@@ -191,9 +166,9 @@
                 const div = document.createElement('div');
                 div.className = 'history-card';
                 div.innerHTML = `
-                    <div style="font-weight:bold; color:var(--morandi-dark-gray); font-size:16px;">${rec.term}</div>
+                    <div style="font-weight:bold; color:var(--morandi-dark-gray);">${rec.term}</div>
                     <div style="font-size:14px; margin:8px 0; color:#666;">${rec.details}</div>
-                    <div style="font-size:14px; color:var(--morandi-dark-gray);">學分總計：${rec.totalCre} | <strong style="color:var(--morandi-pink);">平均：${rec.avg}</strong></div>
+                    <div style="font-size:14px;">學分總計：${rec.totalCre} | <strong style="color:var(--morandi-pink);">平均：${rec.avg}</strong></div>
                     <button class="delete-btn" onclick="deleteHistory(${index})">🗑️ 刪除紀錄</button>
                 `;
                 container.appendChild(div);
@@ -201,7 +176,7 @@
         }
 
         function deleteHistory(index) {
-            if (confirm("確定要刪除這筆學期紀錄嗎？")) {
+            if (confirm("確定要刪除這筆紀錄嗎？")) {
                 let history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
                 history.splice(index, 1);
                 localStorage.setItem('myGradeRecords', JSON.stringify(history));
@@ -211,7 +186,6 @@
 
         function exportData() {
             const data = localStorage.getItem('myGradeRecords');
-            if (!data) { alert("無資料可匯出"); return; }
             const blob = new Blob([data], { type: "application/json" });
             const a = document.createElement("a");
             a.href = URL.createObjectURL(blob);
