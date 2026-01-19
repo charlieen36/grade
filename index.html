@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學期成績紀錄</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; background-color: #f9f9f9; }
+        h1 { text-align: center; color: #333; }
+        .control-panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
+        .backup-zone { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background-color: #007bff; color: white; }
+        input { width: 90%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn { padding: 8px 15px; cursor: pointer; border: none; border-radius: 4px; color: white; margin: 5px; transition: 0.3s; }
+        .btn-save { background-color: #28a745; }
+        .btn-calc { background-color: #17a2b8; }
+        .btn-export { background-color: #6c757d; }
+        .btn-import { background-color: #fd7e14; }
+        .btn:hover { opacity: 0.8; }
+        .total-score { font-weight: bold; color: #d9534f; }
+    </style>
+</head>
+<body>
+
+    <h1>學期成績紀錄</h1>
+
+    <div class="control-panel">
+        <label>學年度：</label>
+        <input type="number" id="year" placeholder="112" style="width: 80px;"> 年 
+        <select id="semester" style="padding: 5px;">
+            <option value="上">上學期</option>
+            <option value="下">下學期</option>
+        </select>
+        
+        <button class="btn btn-save" onclick="saveToLocal()">暫存至瀏覽器</button>
+        <button class="btn btn-calc" onclick="calculateGrades()">立即計算成績</button>
+
+        <div class="backup-zone">
+            <span>💾 備份管理：</span>
+            <button class="btn btn-export" onclick="exportToFile()">導出備份檔 (.json)</button>
+            <button class="btn btn-import" onclick="document.getElementById('fileInput').click()">匯入備份檔</button>
+            <input type="file" id="fileInput" style="display:none" accept=".json" onchange="importFromFile(event)">
+        </div>
+    </div>
+
+    <table id="gradeTable">
+        <thead>
+            <tr>
+                <th>科目</th>
+                <th>學分</th>
+                <th>期中 (分/% )</th>
+                <th>期末 (分/% )</th>
+                <th>平時 (分/% )</th>
+                <th>學期成績</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            </tbody>
+    </table>
+
+    <script>
+        const rowCount = 8; // 預設顯示 8 行
+
+        // 初始化表格
+        function initTable() {
+            const tbody = document.getElementById('tableBody');
+            for (let i = 0; i < rowCount; i++) {
+                const row = `
+                    <tr>
+                        <td><input type="text" class="subject"></td>
+                        <td><input type="number" class="credits"></td>
+                        <td>
+                            <input type="number" class="mid-score" placeholder="分" style="width:40%">
+                            <input type="number" class="mid-percent" placeholder="%" style="width:35%">
+                        </td>
+                        <td>
+                            <input type="number" class="final-score-input" placeholder="分" style="width:40%">
+                            <input type="number" class="final-percent" placeholder="%" style="width:35%">
+                        </td>
+                        <td>
+                            <input type="number" class="daily-score" placeholder="分" style="width:40%">
+                            <input type="number" class="daily-percent" placeholder="%" style="width:35%">
+                        </td>
+                        <td class="total-score">0</td>
+                    </tr>`;
+                tbody.insertAdjacentHTML('beforeend', row);
+            }
+        }
+
+        // 計算成績
+        function calculateGrades() {
+            const rows = document.querySelectorAll("#gradeTable tbody tr");
+            rows.forEach(row => {
+                const midS = parseFloat(row.querySelector(".mid-score").value) || 0;
+                const midP = parseFloat(row.querySelector(".mid-percent").value) || 0;
+                const finS = parseFloat(row.querySelector(".final-score-input").value) || 0;
+                const finP = parseFloat(row.querySelector(".final-percent").value) || 0;
+                const daiS = parseFloat(row.querySelector(".daily-score").value) || 0;
+                const daiP = parseFloat(row.querySelector(".daily-percent").value) || 0;
+
+                const total = (midS * midP / 100) + (finS * finP / 100) + (daiS * daiP / 100);
+                row.querySelector(".total-score").innerText = total.toFixed(2);
+            });
+        }
+
+        // 封裝當前資料
+        function getTableData() {
+            const data = {
+                year: document.getElementById("year").value,
+                semester: document.getElementById("semester").value,
+                rows: []
+            };
+            document.querySelectorAll("#gradeTable tbody tr").forEach(row => {
+                data.rows.push({
+                    subject: row.querySelector(".subject").value,
+                    credits: row.querySelector(".credits").value,
+                    midS: row.querySelector(".mid-score").value,
+                    midP: row.querySelector(".mid-percent").value,
+                    finS: row.querySelector(".final-score-input").value,
+                    finP: row.querySelector(".final-percent").value,
+                    daiS: row.querySelector(".daily-score").value,
+                    daiP: row.querySelector(".daily-percent").value
+                });
+            });
+            return data;
+        }
+
+        // 1. 儲存到 LocalStorage (暫存)
+        function saveToLocal() {
+            const data = getTableData();
+            localStorage.setItem("myGrades", JSON.stringify(data));
+            alert("已成功暫存至瀏覽器！");
+        }
+
+        // 2. 導出為檔案 (真正的備份)
+        function exportToFile() {
+            const data = getTableData();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `成績備份_${data.year}_${data.semester}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 3. 從檔案匯入
+        function importFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = JSON.parse(e.target.result);
+                fillTable(data);
+                alert("備份資料已成功載入！");
+            };
+            reader.readAsText(file);
+        }
+
+        // 將資料填入表格
+        function fillTable(data) {
+            document.getElementById("year").value = data.year || "";
+            document.getElementById("semester").value = data.semester || "上";
+            const rows = document.querySelectorAll("#gradeTable tbody tr");
+            data.rows.forEach((rowScore, index) => {
+                if (rows[index]) {
+                    rows[index].querySelector(".subject").value = rowScore.subject || "";
+                    rows[index].querySelector(".credits").value = rowScore.credits || "";
+                    rows[index].querySelector(".mid-score").value = rowScore.midS || "";
+                    rows[index].querySelector(".mid-percent").value = rowScore.midP || "";
+                    rows[index].querySelector(".final-score-input").value = rowScore.finS || "";
+                    rows[index].querySelector(".final-percent").value = rowScore.finP || "";
+                    rows[index].querySelector(".daily-score").value = rowScore.daiS || "";
+                    rows[index].querySelector(".daily-percent").value = rowScore.daiP || "";
+                }
+            });
+            calculateGrades();
+        }
+
+        // 網頁開啟時自動讀取暫存
+        window.onload = function() {
+            initTable();
+            const savedData = JSON.parse(localStorage.getItem("myGrades"));
+            if (savedData) fillTable(savedData);
+        };
+    </script>
+</body>
+</html>
