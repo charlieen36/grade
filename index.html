@@ -70,8 +70,8 @@
     <div id="gradeArea"></div>
 
     <div class="btn-group">
-        <button class="btn btn-add" onclick="addRow()">新增科目</button>
-        <button class="btn btn-save" onclick="archiveToHistory()">成績單存檔</button>
+        <button class="btn btn-add" onclick="addRow()">➕ 新增一列科目</button>
+        <button class="btn btn-save" onclick="archiveToHistory()">💾 成績單存檔並清空</button>
     </div>
 
     <hr style="border: 0; border-top: 2px solid var(--morandi-blue); margin: 30px 0;">
@@ -88,7 +88,7 @@
 
     <script>
         window.onload = () => { 
-            loadAndFixHistory();
+            renderHistory();
             if (document.getElementById('gradeArea').children.length === 0) addRow();
         };
 
@@ -127,35 +127,34 @@
             cards.forEach(card => {
                 const sub = card.querySelector('.subject-input').value;
                 const cre = parseFloat(card.querySelector('.credit-input').value) || 0;
-                // 強制四捨五入至第一位再計算平均
-                const total = Math.round(parseFloat(card.querySelector('.row-total').innerText) * 10) / 10;
+                
+                // 核心改動：將各科成績先四捨五入到小數第一位
+                const scoreText = card.querySelector('.row-total').innerText;
+                const roundedScore = Math.round(parseFloat(scoreText) * 10) / 10;
                 
                 if (sub) {
                     totalCredits += cre;
-                    weightedSum += (total * cre);
-                    details.push(`${sub}(${cre}學分:${total.toFixed(1)}分)`);
+                    weightedSum += (roundedScore * cre);
+                    details.push(`${sub}(${cre}學分:${roundedScore.toFixed(1)}分)`);
                 }
             });
 
             if (details.length === 0) return;
 
             let history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
+            // 平均值維持計算結果，不額外四捨五入
+            const finalAvg = totalCredits > 0 ? (weightedSum / totalCredits) : 0;
+            
             history.push({
                 term: `${year}學年${sem}學期`,
                 details: details.join("、 "),
                 totalCre: totalCredits,
-                avg: totalCredits > 0 ? (weightedSum / totalCredits).toFixed(2) : 0
+                avg: finalAvg.toFixed(2)
             });
             localStorage.setItem('myGradeRecords', JSON.stringify(history));
             renderHistory();
             document.getElementById('gradeArea').innerHTML = "";
             addRow();
-        }
-
-        function loadAndFixHistory() {
-            let history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
-            // 此處不變動資料結構，僅確保顯示時為新邏輯格式
-            renderHistory();
         }
 
         function renderHistory() {
