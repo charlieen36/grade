@@ -5,21 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>學期成績紀錄</title>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; background-color: #f9f9f9; }
-        h1 { text-align: center; color: #333; }
-        .control-panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
-        .backup-zone { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        th { background-color: #007bff; color: white; }
-        input { width: 90%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
-        .btn { padding: 8px 15px; cursor: pointer; border: none; border-radius: 4px; color: white; margin: 5px; transition: 0.3s; }
-        .btn-save { background-color: #28a745; }
-        .btn-calc { background-color: #17a2b8; }
-        .btn-export { background-color: #6c757d; }
-        .btn-import { background-color: #fd7e14; }
-        .btn:hover { opacity: 0.8; }
-        .total-score { font-weight: bold; color: #d9534f; }
+        :root {
+            --morandi-blue: #91A3B0;
+            --morandi-green: #A3B18A;
+            --morandi-gray: #E5E5E5;
+            --morandi-dark: #6B705C;
+            --morandi-bg: #F4F1DE;
+        }
+        body { font-family: "Microsoft JhengHei", sans-serif; max-width: 1000px; margin: 20px auto; padding: 20px; background-color: var(--morandi-bg); color: #444; }
+        h1, h2 { text-align: center; color: var(--morandi-dark); }
+        
+        .control-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; text-align: center; }
+        
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; margin-bottom: 15px; }
+        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: center; }
+        
+        /* 表格第一列顏色：莫蘭迪藍 */
+        thead tr { background-color: var(--morandi-blue); color: white; }
+        
+        /* 期中期末欄位縮小 */
+        .narrow-col { width: 110px; font-size: 0.9em; }
+        input { width: 90%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; outline: none; }
+        input:focus { border-color: var(--morandi-blue); }
+
+        /* 莫蘭迪色系按鈕 */
+        .btn { padding: 8px 18px; cursor: pointer; border: none; border-radius: 6px; color: white; margin: 5px; font-size: 14px; transition: 0.3s; }
+        .btn-add { background-color: var(--morandi-green); }
+        .btn-save { background-color: var(--morandi-blue); }
+        .btn-clear { background-color: #BDB2FF; }
+        .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+
+        .summary-box { background: #fff; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 5px solid var(--morandi-dark); }
+        .record-section { margin-top: 40px; }
+        .record-table thead tr { background-color: var(--morandi-dark); }
+        .edit-btn { background: #e9ecef; border: 1px solid #ddd; padding: 2px 8px; cursor: pointer; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -28,163 +47,174 @@
 
     <div class="control-panel">
         <label>學年度：</label>
-        <input type="number" id="year" placeholder="112" style="width: 80px;"> 年 
-        <select id="semester" style="padding: 5px;">
+        <input type="number" id="year" placeholder="114" style="width: 60px;"> 年 
+        <select id="semester" style="padding: 6px; border-radius: 4px;">
             <option value="上">上學期</option>
             <option value="下">下學期</option>
         </select>
+        <br><br>
         
-        <button class="btn btn-save" onclick="saveToLocal()">暫存至瀏覽器</button>
-        <button class="btn btn-calc" onclick="calculateGrades()">立即計算成績</button>
-
-        <div class="backup-zone">
-            <span>💾 備份管理：</span>
-            <button class="btn btn-export" onclick="exportToFile()">導出備份檔 (.json)</button>
-            <button class="btn btn-import" onclick="document.getElementById('fileInput').click()">匯入備份檔</button>
-            <input type="file" id="fileInput" style="display:none" accept=".json" onchange="importFromFile(event)">
-        </div>
+        <table id="inputTable">
+            <thead>
+                <tr>
+                    <th>科目</th>
+                    <th>學分</th>
+                    <th class="narrow-col">期中 (分/%)</th>
+                    <th class="narrow-col">期末 (分/%)</th>
+                    <th>平時 (分/%)</th>
+                    <th>本科總分</th>
+                </tr>
+            </thead>
+            <tbody id="inputBody">
+                </tbody>
+        </table>
+        
+        <button class="btn btn-add" onclick="addRow()">➕ 新增一列</button>
+        <button class="btn btn-save" onclick="archiveGrades()">📁 成績單存檔</button>
     </div>
 
-    <table id="gradeTable">
-        <thead>
-            <tr>
-                <th>科目</th>
-                <th>學分</th>
-                <th>期中 (分/% )</th>
-                <th>期末 (分/% )</th>
-                <th>平時 (分/% )</th>
-                <th>學期成績</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody">
-            </tbody>
-    </table>
+    <div class="record-section">
+        <h2>歷年成績單紀錄</h2>
+        <table class="record-table">
+            <thead>
+                <tr>
+                    <th>學期</th>
+                    <th>科目內容 (學分/成績)</th>
+                    <th>總學分</th>
+                    <th>平均分數</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="recordBody">
+                </tbody>
+        </table>
+    </div>
 
     <script>
-        const rowCount = 8; // 預設顯示 8 行
+        // 初始化：新增第一列
+        window.onload = () => {
+            addRow();
+            loadFromLocalStorage();
+        };
 
-        // 初始化表格
-        function initTable() {
-            const tbody = document.getElementById('tableBody');
-            for (let i = 0; i < rowCount; i++) {
-                const row = `
-                    <tr>
-                        <td><input type="text" class="subject"></td>
-                        <td><input type="number" class="credits"></td>
-                        <td>
-                            <input type="number" class="mid-score" placeholder="分" style="width:40%">
-                            <input type="number" class="mid-percent" placeholder="%" style="width:35%">
-                        </td>
-                        <td>
-                            <input type="number" class="final-score-input" placeholder="分" style="width:40%">
-                            <input type="number" class="final-percent" placeholder="%" style="width:35%">
-                        </td>
-                        <td>
-                            <input type="number" class="daily-score" placeholder="分" style="width:40%">
-                            <input type="number" class="daily-percent" placeholder="%" style="width:35%">
-                        </td>
-                        <td class="total-score">0</td>
-                    </tr>`;
-                tbody.insertAdjacentHTML('beforeend', row);
+        function addRow() {
+            const tbody = document.getElementById('inputBody');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" class="subject"></td>
+                <td><input type="number" class="credits" oninput="calcSingle(this)"></td>
+                <td class="narrow-col">
+                    <input type="number" class="mid-s" placeholder="分" style="width:40%" oninput="calcSingle(this)">
+                    <input type="number" class="mid-p" placeholder="%" style="width:35%" oninput="calcSingle(this)">
+                </td>
+                <td class="narrow-col">
+                    <input type="number" class="fin-s" placeholder="分" style="width:40%" oninput="calcSingle(this)">
+                    <input type="number" class="fin-p" placeholder="%" style="width:35%" oninput="calcSingle(this)">
+                </td>
+                <td>
+                    <input type="number" class="dai-s" placeholder="分" style="width:40%" oninput="calcSingle(this)">
+                    <input type="number" class="dai-p" placeholder="%" style="width:35%" oninput="calcSingle(this)">
+                </td>
+                <td class="row-total">0</td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        function calcSingle(el) {
+            const row = el.closest('tr');
+            const ms = parseFloat(row.querySelector('.mid-s').value) || 0;
+            const mp = parseFloat(row.querySelector('.mid-p').value) || 0;
+            const fs = parseFloat(row.querySelector('.fin-s').value) || 0;
+            const fp = parseFloat(row.querySelector('.fin-p').value) || 0;
+            const ds = parseFloat(row.querySelector('.dai-s').value) || 0;
+            const dp = parseFloat(row.querySelector('.dai-p').value) || 0;
+            
+            const total = (ms * mp / 100) + (fs * fp / 100) + (ds * dp / 100);
+            row.querySelector('.row-total').innerText = total.toFixed(1);
+        }
+
+        // 成績單存檔邏輯
+        function archiveGrades() {
+            const year = document.getElementById('year').value;
+            const sem = document.getElementById('semester').value;
+            if(!year) { alert("請輸入學年度"); return; }
+
+            let totalCredits = 0;
+            let weightedSum = 0;
+            let subjectsDetails = [];
+
+            const rows = document.querySelectorAll("#inputBody tr");
+            rows.forEach(row => {
+                const sub = row.querySelector('.subject').value;
+                const cre = parseFloat(row.querySelector('.credits').value) || 0;
+                const score = parseFloat(row.querySelector('.row-total').innerText) || 0;
+
+                if(sub) {
+                    totalCredits += cre;
+                    weightedSum += (score * cre);
+                    subjectsDetails.push(`${sub}(${cre}學分:${score}分)`);
+                }
+            });
+
+            if(subjectsDetails.length === 0) { alert("請至少輸入一科成績"); return; }
+
+            const avg = totalCredits > 0 ? (weightedSum / totalCredits).toFixed(2) : 0;
+
+            const record = {
+                id: Date.now(),
+                term: `${year}學年${sem}學期`,
+                details: subjectsDetails.join(", "),
+                totalCre: totalCredits,
+                avgScore: avg
+            };
+
+            saveRecord(record);
+            renderRecords();
+            
+            // 清空上方表格
+            document.getElementById('inputBody').innerHTML = "";
+            addRow();
+            alert("已存檔至下方紀錄，上方表格已重置。");
+        }
+
+        function saveRecord(record) {
+            let history = JSON.parse(localStorage.getItem('gradeHistory')) || [];
+            history.push(record);
+            localStorage.setItem('gradeHistory', JSON.stringify(history));
+        }
+
+        function renderRecords() {
+            const history = JSON.parse(localStorage.getItem('gradeHistory')) || [];
+            const tbody = document.getElementById('recordBody');
+            tbody.innerHTML = "";
+
+            history.forEach((rec, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${rec.term}</td>
+                    <td style="text-align:left">${rec.details}</td>
+                    <td>${rec.totalCre}</td>
+                    <td style="color:blue; font-weight:bold;">${rec.avgScore}</td>
+                    <td>
+                        <button class="edit-btn" onclick="deleteRecord(${index})">刪除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function deleteRecord(index) {
+            if(confirm("確定要刪除這筆紀錄嗎？")) {
+                let history = JSON.parse(localStorage.getItem('gradeHistory')) || [];
+                history.splice(index, 1);
+                localStorage.setItem('gradeHistory', JSON.stringify(history));
+                renderRecords();
             }
         }
 
-        // 計算成績
-        function calculateGrades() {
-            const rows = document.querySelectorAll("#gradeTable tbody tr");
-            rows.forEach(row => {
-                const midS = parseFloat(row.querySelector(".mid-score").value) || 0;
-                const midP = parseFloat(row.querySelector(".mid-percent").value) || 0;
-                const finS = parseFloat(row.querySelector(".final-score-input").value) || 0;
-                const finP = parseFloat(row.querySelector(".final-percent").value) || 0;
-                const daiS = parseFloat(row.querySelector(".daily-score").value) || 0;
-                const daiP = parseFloat(row.querySelector(".daily-percent").value) || 0;
-
-                const total = (midS * midP / 100) + (finS * finP / 100) + (daiS * daiP / 100);
-                row.querySelector(".total-score").innerText = total.toFixed(2);
-            });
+        function loadFromLocalStorage() {
+            renderRecords();
         }
-
-        // 封裝當前資料
-        function getTableData() {
-            const data = {
-                year: document.getElementById("year").value,
-                semester: document.getElementById("semester").value,
-                rows: []
-            };
-            document.querySelectorAll("#gradeTable tbody tr").forEach(row => {
-                data.rows.push({
-                    subject: row.querySelector(".subject").value,
-                    credits: row.querySelector(".credits").value,
-                    midS: row.querySelector(".mid-score").value,
-                    midP: row.querySelector(".mid-percent").value,
-                    finS: row.querySelector(".final-score-input").value,
-                    finP: row.querySelector(".final-percent").value,
-                    daiS: row.querySelector(".daily-score").value,
-                    daiP: row.querySelector(".daily-percent").value
-                });
-            });
-            return data;
-        }
-
-        // 1. 儲存到 LocalStorage (暫存)
-        function saveToLocal() {
-            const data = getTableData();
-            localStorage.setItem("myGrades", JSON.stringify(data));
-            alert("已成功暫存至瀏覽器！");
-        }
-
-        // 2. 導出為檔案 (真正的備份)
-        function exportToFile() {
-            const data = getTableData();
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `成績備份_${data.year}_${data.semester}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        // 3. 從檔案匯入
-        function importFromFile(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = JSON.parse(e.target.result);
-                fillTable(data);
-                alert("備份資料已成功載入！");
-            };
-            reader.readAsText(file);
-        }
-
-        // 將資料填入表格
-        function fillTable(data) {
-            document.getElementById("year").value = data.year || "";
-            document.getElementById("semester").value = data.semester || "上";
-            const rows = document.querySelectorAll("#gradeTable tbody tr");
-            data.rows.forEach((rowScore, index) => {
-                if (rows[index]) {
-                    rows[index].querySelector(".subject").value = rowScore.subject || "";
-                    rows[index].querySelector(".credits").value = rowScore.credits || "";
-                    rows[index].querySelector(".mid-score").value = rowScore.midS || "";
-                    rows[index].querySelector(".mid-percent").value = rowScore.midP || "";
-                    rows[index].querySelector(".final-score-input").value = rowScore.finS || "";
-                    rows[index].querySelector(".final-percent").value = rowScore.finP || "";
-                    rows[index].querySelector(".daily-score").value = rowScore.daiS || "";
-                    rows[index].querySelector(".daily-percent").value = rowScore.daiP || "";
-                }
-            });
-            calculateGrades();
-        }
-
-        // 網頁開啟時自動讀取暫存
-        window.onload = function() {
-            initTable();
-            const savedData = JSON.parse(localStorage.getItem("myGrades"));
-            if (savedData) fillTable(savedData);
-        };
     </script>
 </body>
 </html>
