@@ -28,6 +28,7 @@
         .subject-input { width: 140px; }
         .credit-input { width: 50px; }
         
+        /* 期中期末加大欄位 */
         .score-box { width: 60px; }
         .percent-box { width: 45px; }
 
@@ -39,8 +40,8 @@
         .record-section { margin-top: 50px; border-top: 2px solid var(--morandi-blue); padding-top: 20px; }
         .record-table thead tr { background-color: var(--morandi-dark-gray); }
         
-        /* 編輯與刪除按鈕改為莫蘭迪粉 */
-        .admin-btn { background-color: var(--morandi-pink); color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; margin: 2px; }
+        /* 編輯與刪除按鈕統一為莫蘭迪粉 */
+        .admin-btn { background-color: var(--morandi-pink); color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; margin: 2px; }
         
         .backup-section { margin-top: 40px; padding: 20px; border: 1px dashed var(--morandi-blue); border-radius: 8px; text-align: center; }
     </style>
@@ -69,12 +70,13 @@
                 <th>學期成績</th>
             </tr>
         </thead>
-        <tbody id="gradeBody"></tbody>
+        <tbody id="gradeBody">
+            </tbody>
     </table>
 
     <div style="text-align: center; margin-top: 20px;">
         <button class="btn btn-add" onclick="addRow()">新增科目</button>
-        <button class="btn btn-save" onclick="archiveToHistory()">成績單存檔</button>
+        <button class="btn btn-save" id="saveBtn" onclick="archiveToHistory()">成績單存檔</button>
     </div>
 
     <div class="record-section">
@@ -95,14 +97,20 @@
 
     <div class="backup-section">
         <h3>📂 系統備份與恢復</h3>
-        <button class="btn btn-add" onclick="exportData()">下載成績單備份檔</button>
+        <button class="btn btn-add" onclick="exportData()">下載成績單備份檔 (.json)</button>
         <button class="btn btn-save" onclick="document.getElementById('importFile').click()">匯入備份檔案</button>
         <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
     </div>
 
     <script>
-        window.onload = () => { addRow(); renderHistory(); };
+        let editTargetId = null; // 追蹤目前是否正在編輯某一筆
 
+        window.onload = () => { 
+            addRow(); 
+            renderHistory(); 
+        };
+
+        // 新增列，支援傳入舊資料（編輯用）
         function addRow(data = {}) {
             const tbody = document.getElementById('gradeBody');
             const tr = document.createElement('tr');
@@ -126,14 +134,15 @@
             tbody.appendChild(tr);
         }
 
+        // 第一版原封不動的計算功能
         function calculateRow(el) {
             const row = el.closest('tr');
             const ms = parseFloat(row.querySelector('.mid-s').value) || 0;
             const mp = parseFloat(row.querySelector('.mid-p').value) || 0;
             const fs = parseFloat(row.querySelector('.fin-s').value) || 0;
             const fp = parseFloat(row.querySelector('.fin-p').value) || 0;
-            const ds = parseFloat(row.querySelector('.dai-s').value) || 0;
-            const dp = parseFloat(row.querySelector('.dai-p').value) || 0;
+            const ds = parseFloat(row.querySelector('.daily-s').value) || 0;
+            const dp = parseFloat(row.querySelector('.daily-p').value) || 0;
             const total = (ms * mp / 100) + (fs * fp / 100) + (ds * dp / 100);
             row.querySelector('.row-total').innerText = total.toFixed(1);
         }
@@ -158,15 +167,17 @@
                         sub, cre, total,
                         ms: row.querySelector('.mid-s').value, mp: row.querySelector('.mid-p').value,
                         fs: row.querySelector('.fin-s').value, fp: row.querySelector('.fin-p').value,
-                        ds: row.querySelector('.dai-s').value, dp: row.querySelector('.dai-p').value
+                        ds: row.querySelector('.daily-s').value, dp: row.querySelector('.daily-p').value
                     });
                 }
             });
 
-            if (details.length === 0) return;
+            if (details.length === 0) { alert("請輸入至少一個科目"); return; }
 
-            const record = {
-                id: Date.now(),
+            let history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
+
+            const newRecord = {
+                id: editTargetId || Date.now(),
                 term: `${year}學年${sem}學期`,
                 year, sem,
                 details: details.join("、 "),
@@ -175,20 +186,31 @@
                 avg: totalCredits > 0 ? (weightedSum / totalCredits).toFixed(2) : 0
             };
 
-            let history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
-            history.push(record);
-            localStorage.setItem('myGradeRecords', JSON.stringify(history));
+            if (editTargetId) {
+                // 更新模式：取代舊有資料
+                const index = history.findIndex(r => r.id === editTargetId);
+                if (index !== -1) history[index] = newRecord;
+                editTargetId = null;
+                document.getElementById('saveBtn').innerText = "💾 成績單存檔";
+            } else {
+                // 新增模式
+                history.push(newRecord);
+            }
 
+            localStorage.setItem('myGradeRecords', JSON.stringify(history));
             renderHistory();
+            
+            // 存檔後清空上方並回到初始狀態
             document.getElementById('gradeBody').innerHTML = "";
             addRow();
+            alert("成績單已成功儲存！");
         }
 
         function renderHistory() {
             const history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
             const tbody = document.getElementById('historyBody');
             tbody.innerHTML = "";
-            history.forEach((rec, index) => {
+            history.forEach((rec) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${rec.term}</td>
@@ -196,54 +218,69 @@
                     <td>${rec.totalCre}</td>
                     <td style="font-weight:bold; color:var(--morandi-pink);">${rec.avg}</td>
                     <td>
-                        <button class="admin-btn" onclick="editHistory(${index})">編輯</button>
-                        <button class="admin-btn" onclick="deleteHistory(${index})">刪除</button>
+                        <button class="admin-btn" onclick="editHistory(${rec.id})">編輯</button>
+                        <button class="admin-btn" onclick="deleteHistory(${rec.id})">刪除</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function editHistory(index) {
+        function editHistory(id) {
             let history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
-            const rec = history[index];
+            const rec = history.find(r => r.id === id);
+            if (!rec) return;
+
+            // 1. 將資料填回上方輸入區
             document.getElementById('year').value = rec.year;
             document.getElementById('semester').value = rec.sem;
             document.getElementById('gradeBody').innerHTML = "";
             rec.rawData.forEach(data => addRow(data));
-            history.splice(index, 1);
-            localStorage.setItem('myGradeRecords', JSON.stringify(history));
-            renderHistory();
-            window.scrollTo(0,0);
+
+            // 2. 設定編輯目標 ID，並更改按鈕文字提示用戶
+            editTargetId = id;
+            document.getElementById('saveBtn').innerText = "✅ 更新此筆紀錄";
+            
+            // 3. 滾動到上方方便編輯
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function deleteHistory(index) {
-            if (confirm("確定刪除？")) {
+        function deleteHistory(id) {
+            if (confirm("確定刪除這筆紀錄嗎？")) {
                 let history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
-                history.splice(index, 1);
+                history = history.filter(r => r.id !== id);
                 localStorage.setItem('myGradeRecords', JSON.stringify(history));
                 renderHistory();
             }
         }
 
+        // 備份功能
         function exportData() {
             const data = localStorage.getItem('myGradeRecords');
+            if (!data || data === "[]") { alert("目前沒有紀錄可匯出"); return; }
             const blob = new Blob([data], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = "成績單備份.json";
+            a.download = `成績單備份_${new Date().toLocaleDateString()}.json`;
             a.click();
         }
 
         function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
-                localStorage.setItem('myGradeRecords', e.target.result);
-                renderHistory();
-                alert("匯入成功！");
+                try {
+                    const data = JSON.parse(e.target.result);
+                    localStorage.setItem('myGradeRecords', JSON.stringify(data));
+                    renderHistory();
+                    alert("匯入成功！");
+                } catch (err) {
+                    alert("檔案格式錯誤，請確保匯入正確的備份檔。");
+                }
             };
-            reader.readAsText(event.target.files[0]);
+            reader.readAsText(file);
         }
     </script>
 </body>
