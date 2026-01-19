@@ -6,36 +6,31 @@
     <title>學期成績紀錄</title>
     <style>
         :root {
-            --morandi-pink: #D8A7B1; /* 莫蘭迪粉 */
-            --morandi-blue: #97B2C4; /* 莫蘭迪藍 */
-            --morandi-dark-gray: #4A4E52; /* 莫蘭迪深灰 */
+            --morandi-pink: #D8A7B1;
+            --morandi-blue: #97B2C4;
+            --morandi-dark-gray: #4A4E52;
             --border-color: #E0E0E0;
         }
         
         body { font-family: "Microsoft JhengHei", sans-serif; max-width: 1100px; margin: 20px auto; padding: 20px; background-color: #ffffff; color: #333; }
         
-        /* 標題改為莫蘭迪深灰 */
         h1, h2 { text-align: center; color: var(--morandi-dark-gray); font-weight: bold; }
 
         .setup-section { margin-bottom: 25px; text-align: center; padding: 15px; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
         
-        /* 表格第一列顏色：莫蘭迪藍 */
         thead tr { background-color: var(--morandi-blue); color: white; }
         th, td { border: 1px solid var(--border-color); padding: 12px 8px; text-align: center; }
 
-        /* 輸入框樣式 */
         input { padding: 6px; border: 1px solid #ccc; border-radius: 4px; outline: none; }
         input:focus { border-color: var(--morandi-pink); }
         .subject-input { width: 140px; }
         .credit-input { width: 50px; }
         
-        /* 期中期末欄位加大 */
         .score-box { width: 60px; }
         .percent-box { width: 45px; }
 
-        /* 按鈕樣式：莫蘭迪粉 */
         .btn { padding: 10px 20px; cursor: pointer; border: none; border-radius: 6px; color: white; font-size: 15px; transition: 0.3s; margin: 5px; }
         .btn-add { background-color: var(--morandi-blue); }
         .btn-save { background-color: var(--morandi-pink); }
@@ -43,13 +38,16 @@
 
         .record-section { margin-top: 50px; border-top: 2px solid var(--morandi-blue); padding-top: 20px; }
         .record-table thead tr { background-color: var(--morandi-dark-gray); }
-        .delete-btn { background: #ff7675; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; }
+        
+        /* 編輯與刪除按鈕改為莫蘭迪粉 */
+        .admin-btn { background-color: var(--morandi-pink); color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; margin: 2px; }
+        
+        .backup-section { margin-top: 40px; padding: 20px; border: 1px dashed var(--morandi-blue); border-radius: 8px; text-align: center; }
     </style>
 </head>
 <body>
 
     <h1>學期成績紀錄</h1>
-    <br>
 
     <div class="setup-section">
         <label>學年度：</label>
@@ -71,22 +69,21 @@
                 <th>學期成績</th>
             </tr>
         </thead>
-        <tbody id="gradeBody">
-            </tbody>
+        <tbody id="gradeBody"></tbody>
     </table>
 
     <div style="text-align: center; margin-top: 20px;">
-        <button class="btn btn-add" onclick="addRow()">➕ 新增科目</button>
-        <button class="btn btn-save" onclick="archiveToHistory()">💾 成績單存檔</button>
+        <button class="btn btn-add" onclick="addRow()">新增科目</button>
+        <button class="btn btn-save" onclick="archiveToHistory()">成績單存檔</button>
     </div>
 
     <div class="record-section">
         <h2>歷年成績單紀錄</h2>
-        <table id="historyTable">
+        <table>
             <thead>
                 <tr>
                     <th>學期</th>
-                    <th>詳細紀錄 (科目/學分/成績)</th>
+                    <th>詳細紀錄</th>
                     <th>學分總計</th>
                     <th>總平均</th>
                     <th>管理</th>
@@ -96,38 +93,39 @@
         </table>
     </div>
 
-    <script>
-        // 初始化
-        window.onload = () => {
-            addRow();
-            loadHistory();
-        };
+    <div class="backup-section">
+        <h3>📂 系統備份與恢復</h3>
+        <button class="btn btn-add" onclick="exportData()">下載成績單備份檔</button>
+        <button class="btn btn-save" onclick="document.getElementById('importFile').click()">匯入備份檔案</button>
+        <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
+    </div>
 
-        // 新增一行表格 (保留第一版所有計算功能)
-        function addRow() {
+    <script>
+        window.onload = () => { addRow(); renderHistory(); };
+
+        function addRow(data = {}) {
             const tbody = document.getElementById('gradeBody');
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><input type="text" class="subject-input"></td>
-                <td><input type="number" class="credit-input" oninput="calculateRow(this)"></td>
+                <td><input type="text" class="subject-input" value="${data.sub || ''}"></td>
+                <td><input type="number" class="credit-input" oninput="calculateRow(this)" value="${data.cre || ''}"></td>
                 <td>
-                    <input type="number" class="score-box mid-s" placeholder="分" oninput="calculateRow(this)"> / 
-                    <input type="number" class="percent-box mid-p" placeholder="%" oninput="calculateRow(this)">
+                    <input type="number" class="score-box mid-s" placeholder="分" oninput="calculateRow(this)" value="${data.ms || ''}"> / 
+                    <input type="number" class="percent-box mid-p" placeholder="%" oninput="calculateRow(this)" value="${data.mp || ''}">
                 </td>
                 <td>
-                    <input type="number" class="score-box fin-s" placeholder="分" oninput="calculateRow(this)"> / 
-                    <input type="number" class="percent-box fin-p" placeholder="%" oninput="calculateRow(this)">
+                    <input type="number" class="score-box fin-s" placeholder="分" oninput="calculateRow(this)" value="${data.fs || ''}"> / 
+                    <input type="number" class="percent-box fin-p" placeholder="%" oninput="calculateRow(this)" value="${data.fp || ''}">
                 </td>
                 <td>
-                    <input type="number" class="score-box dai-s" placeholder="分" oninput="calculateRow(this)"> / 
-                    <input type="number" class="percent-box dai-p" placeholder="%" oninput="calculateRow(this)">
+                    <input type="number" class="score-box dai-s" placeholder="分" oninput="calculateRow(this)" value="${data.ds || ''}"> / 
+                    <input type="number" class="percent-box dai-p" placeholder="%" oninput="calculateRow(this)" value="${data.dp || ''}">
                 </td>
-                <td class="row-total" style="font-weight:bold; color:var(--morandi-dark-gray);">0</td>
+                <td class="row-total" style="font-weight:bold; color:var(--morandi-dark-gray);">${data.total || 0}</td>
             `;
             tbody.appendChild(tr);
         }
 
-        // 即時計算單行成績
         function calculateRow(el) {
             const row = el.closest('tr');
             const ms = parseFloat(row.querySelector('.mid-s').value) || 0;
@@ -136,64 +134,60 @@
             const fp = parseFloat(row.querySelector('.fin-p').value) || 0;
             const ds = parseFloat(row.querySelector('.dai-s').value) || 0;
             const dp = parseFloat(row.querySelector('.dai-p').value) || 0;
-
             const total = (ms * mp / 100) + (fs * fp / 100) + (ds * dp / 100);
             row.querySelector('.row-total').innerText = total.toFixed(1);
         }
 
-        // 成績單存檔並清空
         function archiveToHistory() {
             const year = document.getElementById('year').value;
             const sem = document.getElementById('semester').value;
             if (!year) { alert("請填寫學年度"); return; }
 
             const rows = document.querySelectorAll("#gradeBody tr");
-            let totalCredits = 0;
-            let weightedSum = 0;
-            let detailsArray = [];
+            let totalCredits = 0, weightedSum = 0, details = [], rawData = [];
 
             rows.forEach(row => {
                 const sub = row.querySelector('.subject-input').value;
                 const cre = parseFloat(row.querySelector('.credit-input').value) || 0;
-                const score = parseFloat(row.querySelector('.row-total').innerText) || 0;
-
+                const total = parseFloat(row.querySelector('.row-total').innerText) || 0;
                 if (sub) {
                     totalCredits += cre;
-                    weightedSum += (score * cre);
-                    detailsArray.push(`${sub}(${cre}學分:${score}分)`);
+                    weightedSum += (total * cre);
+                    details.push(`${sub}(${cre}學分:${total}分)`);
+                    rawData.push({
+                        sub, cre, total,
+                        ms: row.querySelector('.mid-s').value, mp: row.querySelector('.mid-p').value,
+                        fs: row.querySelector('.fin-s').value, fp: row.querySelector('.fin-p').value,
+                        ds: row.querySelector('.dai-s').value, dp: row.querySelector('.dai-p').value
+                    });
                 }
             });
 
-            if (detailsArray.length === 0) { alert("請輸入科目資料"); return; }
-
-            const average = totalCredits > 0 ? (weightedSum / totalCredits).toFixed(2) : 0;
+            if (details.length === 0) return;
 
             const record = {
                 id: Date.now(),
                 term: `${year}學年${sem}學期`,
-                details: detailsArray.join("、 "),
+                year, sem,
+                details: details.join("、 "),
+                rawData,
                 totalCre: totalCredits,
-                avg: average
+                avg: totalCredits > 0 ? (weightedSum / totalCredits).toFixed(2) : 0
             };
 
-            // 存入 LocalStorage
             let history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
             history.push(record);
             localStorage.setItem('myGradeRecords', JSON.stringify(history));
 
-            // 更新下方列表並清空上方
             renderHistory();
             document.getElementById('gradeBody').innerHTML = "";
             addRow();
-            alert("成績單已存檔並清空輸入區！");
         }
 
-        // 渲染歷史紀錄
         function renderHistory() {
             const history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
             const tbody = document.getElementById('historyBody');
             tbody.innerHTML = "";
-
             history.forEach((rec, index) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -201,14 +195,30 @@
                     <td style="text-align:left; font-size:0.9em;">${rec.details}</td>
                     <td>${rec.totalCre}</td>
                     <td style="font-weight:bold; color:var(--morandi-pink);">${rec.avg}</td>
-                    <td><button class="delete-btn" onclick="deleteHistory(${index})">刪除</button></td>
+                    <td>
+                        <button class="admin-btn" onclick="editHistory(${index})">編輯</button>
+                        <button class="admin-btn" onclick="deleteHistory(${index})">刪除</button>
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
+        function editHistory(index) {
+            let history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
+            const rec = history[index];
+            document.getElementById('year').value = rec.year;
+            document.getElementById('semester').value = rec.sem;
+            document.getElementById('gradeBody').innerHTML = "";
+            rec.rawData.forEach(data => addRow(data));
+            history.splice(index, 1);
+            localStorage.setItem('myGradeRecords', JSON.stringify(history));
+            renderHistory();
+            window.scrollTo(0,0);
+        }
+
         function deleteHistory(index) {
-            if (confirm("確定刪除此學期紀錄？")) {
+            if (confirm("確定刪除？")) {
                 let history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
                 history.splice(index, 1);
                 localStorage.setItem('myGradeRecords', JSON.stringify(history));
@@ -216,7 +226,25 @@
             }
         }
 
-        function loadHistory() { renderHistory(); }
+        function exportData() {
+            const data = localStorage.getItem('myGradeRecords');
+            const blob = new Blob([data], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "成績單備份.json";
+            a.click();
+        }
+
+        function importData(event) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                localStorage.setItem('myGradeRecords', e.target.result);
+                renderHistory();
+                alert("匯入成功！");
+            };
+            reader.readAsText(event.target.files[0]);
+        }
     </script>
 </body>
 </html>
