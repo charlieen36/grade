@@ -28,6 +28,7 @@
         .subject-input { width: 140px; }
         .credit-input { width: 50px; }
         
+        /* 加大期中期末欄位 */
         .score-box { width: 60px; }
         .percent-box { width: 45px; }
 
@@ -39,6 +40,7 @@
         .record-section { margin-top: 50px; border-top: 2px solid var(--morandi-blue); padding-top: 20px; }
         .record-table thead tr { background-color: var(--morandi-dark-gray); }
         
+        /* 編輯與刪除按鈕統一莫蘭迪粉 */
         .admin-btn { background-color: var(--morandi-pink); color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; margin: 2px; }
         
         .backup-section { margin-top: 40px; padding: 20px; border: 1px dashed var(--morandi-blue); border-radius: 8px; text-align: center; }
@@ -82,7 +84,7 @@
             <thead>
                 <tr>
                     <th>學期</th>
-                    <th>詳細紀錄</th>
+                    <th>詳細紀錄 (科目/學分/成績)</th>
                     <th>學分總計</th>
                     <th>總平均</th>
                     <th>管理</th>
@@ -123,9 +125,11 @@
                     <input type="number" class="score-box dai-s" placeholder="分" oninput="calculateRow(this)" value="${data.ds || ''}"> / 
                     <input type="number" class="percent-box dai-p" placeholder="%" oninput="calculateRow(this)" value="${data.dp || ''}">
                 </td>
-                <td class="row-total" style="font-weight:bold; color:var(--morandi-dark-gray);">${data.total || 0}</td>
+                <td class="row-total" style="font-weight:bold; color:var(--morandi-dark-gray);">0</td>
             `;
             tbody.appendChild(tr);
+            // 如果是編輯搬移過來的資料，立刻計算學期成績
+            calculateRow(tr.querySelector('.subject-input'));
         }
 
         function calculateRow(el) {
@@ -183,12 +187,15 @@
             let history = JSON.parse(localStorage.getItem('myGradeRecords')) || [];
             const rec = history[index];
             
-            // 搬移：填入上方並從下方刪除
+            // 搬移：設定上方欄位並清空上方舊內容
             document.getElementById('year').value = rec.year;
             document.getElementById('semester').value = rec.sem;
             document.getElementById('gradeBody').innerHTML = "";
+            
+            // 逐一搬回科目數據
             rec.rawData.forEach(data => addRow(data));
             
+            // 從下方紀錄徹底移除
             history.splice(index, 1);
             localStorage.setItem('myGradeRecords', JSON.stringify(history));
             renderHistory();
